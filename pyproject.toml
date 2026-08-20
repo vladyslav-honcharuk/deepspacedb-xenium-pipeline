@@ -1,0 +1,98 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deepspacedb-xenium-pipeline"
+dynamic = ["version"]
+description = "Collect, download, and transform 10x Xenium data into standardized SpatialData objects."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "DeepSpaceDB / XeniumMundus", email = "deepspacedbkyoto@gmail.com" }]
+keywords = ["xenium", "spatial-transcriptomics", "spatialdata", "10x-genomics", "bioinformatics", "geo"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Typing :: Typed",
+]
+
+# Heavy scientific dependencies are intentionally left unpinned; pin them in your
+# environment/lockfile. They are imported lazily where practical so lightweight
+# entrypoints (config, CLI parsing) do not require the full stack.
+dependencies = [
+    "numpy",
+    "pandas",
+    "pyarrow",
+    "geopandas",
+    "shapely",
+    "scipy",
+    "scanpy",
+    "anndata",
+    "zarr<3",
+    "tifffile",
+    "opencv-python-headless",
+    "dask",
+    "matplotlib",
+    "scikit-image",
+    "Pillow",
+    "packaging",
+    "requests",
+    "spatialdata",
+    "spatialdata-io",
+]
+
+[project.optional-dependencies]
+plot = ["spatialdata-plot"]
+haystack = ["singleCellHaystack"]
+dev = ["pytest>=7", "pytest-cov", "mypy", "ruff"]
+
+[project.scripts]
+xenium-pipeline = "deepspacedb_xenium_pipeline.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/DeepSpaceDB/deepspacedb-xenium-pipeline"
+Repository = "https://github.com/DeepSpaceDB/deepspacedb-xenium-pipeline"
+Issues = "https://github.com/DeepSpaceDB/deepspacedb-xenium-pipeline/issues"
+
+# --------------------------------------------------------------------------- #
+# Packaging (src layout)
+# --------------------------------------------------------------------------- #
+
+[tool.setuptools.dynamic]
+version = { attr = "deepspacedb_xenium_pipeline.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+deepspacedb_xenium_pipeline = ["py.typed"]
+
+# --------------------------------------------------------------------------- #
+# Tooling
+# --------------------------------------------------------------------------- #
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_ignores = true
+ignore_missing_imports = true
+files = ["src"]
