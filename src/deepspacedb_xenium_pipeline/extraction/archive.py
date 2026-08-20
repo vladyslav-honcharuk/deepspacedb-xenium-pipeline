@@ -117,7 +117,7 @@ class ArchiveExtractor:
                     return self._extract_tar_with_mode(archive_path, temp_dir, "r:")
                 except (tarfile.TarError, OSError) as exc2:
                     self.logger.error("Also failed as plain tar: %s", exc2)
-                    raise exc
+                    raise exc2 from exc
             raise
 
     def _extract_tar_with_mode(self, archive_path: Path, temp_dir: Path, mode: str) -> int:

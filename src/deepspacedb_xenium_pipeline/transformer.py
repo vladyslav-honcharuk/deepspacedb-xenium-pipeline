@@ -19,13 +19,13 @@ from typing import Dict, List, Optional, Tuple
 import spatialdata as sd
 
 from . import constants
+from .analysis import Binner, SingleCellExporter, TranscriptomicsProcessor
 from .compat import apply_spatialdata_patches
 from .config import PipelineConfig
 from .extraction import ArchiveExtractor, FileOrganizer, FileRepair
 from .imaging import HEProcessor, ImageRenderer, MorphologyProcessor
 from .loaders import SpatialDataBuilder, TableLoader
 from .logging_setup import get_logger
-from .analysis import Binner, SingleCellExporter, TranscriptomicsProcessor
 from .results import (
     BaseResult,
     CompleteProcessingResult,

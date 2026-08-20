@@ -42,7 +42,7 @@ def test_analyzer_detects_raw_files(tmp_path):
 
 
 def test_update_with_result_sets_error():
-    from deepspacedb_xenium_pipeline.results import failure, CompleteProcessingResult
+    from deepspacedb_xenium_pipeline.results import CompleteProcessingResult, failure
 
     analyzer = SampleAnalyzer(PipelineConfig())
     summary = SampleSummary(sample_name="S", sample_path="/p")

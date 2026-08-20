@@ -22,7 +22,6 @@ from .config import PipelineConfig
 from .logging_setup import configure_logging
 from .summary import SampleSummary, write_summary_csv
 
-
 # --------------------------------------------------------------------------- #
 # Parser
 # --------------------------------------------------------------------------- #

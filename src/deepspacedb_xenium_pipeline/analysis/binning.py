@@ -95,7 +95,7 @@ class Binner:
             temp = np.zeros((x_max_b + 1, y_max_b + 1), dtype=np.float32)
             with_gene = np.flatnonzero(gene_expression[:, gene_idx].toarray() > 0)
             if len(with_gene) > 0:
-                combos = np.unique(list(zip(x_idx[with_gene], y_idx[with_gene])), axis=0)
+                combos = np.unique(list(zip(x_idx[with_gene], y_idx[with_gene], strict=False)), axis=0)
                 for i, j in combos:
                     idx = cells_in_bins.get(f"{i}_{j}", [])
                     if len(idx) > 0:
