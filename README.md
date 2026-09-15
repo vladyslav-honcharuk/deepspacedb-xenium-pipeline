@@ -26,44 +26,8 @@ pip install -e ".[dev,plot]"
 pytest
 ```
 
-Requires Python >= 3.10 on Linux, macOS, or Windows.
-
-## SpatialData version
-
-**This package is built for `spatialdata` 0.5.0 and `spatialdata-io` 0.3.0, on `zarr` 2.x.**
-
-Those are the versions it is developed and tested against. The scientific
-dependencies are deliberately left unpinned in `pyproject.toml` so you can
-resolve them in your own environment or lockfile, with two consequences worth
-knowing before you upgrade:
-
-- **`spatialdata-io` is used through a private API.** The bundled compatibility
-  layer patches `spatialdata_io.readers.xenium._get_polygons` to tolerate the
-  degenerate boundary rings and index mismatches that real GEO uploads contain.
-  A `spatialdata-io` release that renames or restructures that function will
-  break the patch, so pin `spatialdata-io==0.3.0` if you need the salvage stage
-  to stay reproducible.
-- **`zarr` is capped below 3.0** (`zarr<3`), and the cap is load-bearing rather
-  than precautionary: the binning and export code writes through the zarr v2 API
-  (`zarr.storage.ZipStore`, `zarr.create`, `create_dataset(compression=...)`),
-  which zarr 3 removed.
-
-The rest of the stack is version-tolerant. For reference, the exact combination
-the test suite is run against:
-
-| Package | Version |
-| --- | --- |
-| Python | 3.10 (CI also covers 3.11 and 3.12) |
-| spatialdata | 0.5.0 |
-| spatialdata-io | 0.3.0 |
-| zarr | 2.18.3 |
-| anndata | 0.11.4 |
-| scanpy | 1.11.5 |
-| geopandas | 1.1.4 |
-| dask | 2024.11.2 |
-| xarray | 2025.6.1 |
-| numpy | 2.2.6 |
-| pandas | 2.3.3 |
+Requires Python >= 3.10 on Linux, macOS, or Windows. Built for `spatialdata` 0.5.0
+and `spatialdata-io` 0.3.0 on `zarr` 2.x.
 
 ## Usage
 
