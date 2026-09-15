@@ -7,6 +7,7 @@ generation is skipped with a warning rather than crashing the pipeline.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import List
 
@@ -163,15 +164,28 @@ class ImageRenderer:
                 key = available[0]
 
             if key is not None:
+                # Image dimensions are in pixels, so convert to microns.
                 scale0_x = sdata.images[key]["scale0"].ds.sizes["x"]
-            elif "cell_circles" in sdata.shapes:
-                x = sdata.shapes["cell_circles"].geometry.x
-                scale0_x = x.max() - x.min()
+                pixel_size = constants.read_pixel_size(sample_dir / "processed" / constants.EXPERIMENT_FILENAME)
+                correction_factor = scale0_x * pixel_size
             else:
-                scale0_x = 1000
-
-            pixel_size = constants.read_pixel_size(sample_dir / "processed" / constants.EXPERIMENT_FILENAME)
-            correction_factor = scale0_x * pixel_size
+                # No image available: fall back to the cell coordinates, which
+                # are already in microns - do NOT multiply by pixel_size again.
+                # It must be the ABSOLUTE max extent, not the min-to-max range:
+                # the viewer anchors overlays at x=0 and sizes them by this
+                # value, so a range under-sizes the canvas by minx and clips
+                # everything past the right edge. Prefer boundary vertices over
+                # centroids so that no polygon falls outside.
+                correction_factor = 1000.0
+                for shape_key in ("cell_boundaries", "nucleus_boundaries", "cell_circles"):
+                    if shape_key in sdata.shapes:
+                        correction_factor = float(sdata.shapes[shape_key].total_bounds[2])
+                        self.logger.info(
+                            "No image available; correction factor from %s maxx=%.1fum",
+                            shape_key,
+                            correction_factor,
+                        )
+                        break
         except Exception as exc:  # noqa: BLE001
             self.logger.error("Error calculating correction factor: %s", exc)
 
@@ -179,6 +193,33 @@ class ImageRenderer:
         correction_file.write_text(f"{correction_factor}\n")
         self.logger.info("Correction factor: %s", correction_factor)
         return correction_factor
+
+    def tissue_height_um(self, sample_dir: Path, fallback_maxy: float) -> float:
+        """Tissue Y extent in microns, derived the way the correction factor derives X.
+
+        The correction factor is ``scale0_x * pixel_size``, so the matching
+        height is ``scale0_y * pixel_size``. Falls back to the shapes' own
+        max-y when the image dimensions cannot be read.
+        """
+        try:
+            images_dir = sample_dir / "processed.zarr" / "images"
+            key = None
+            for candidate in ("morphology_mip", "morphology_focus"):
+                if (images_dir / candidate).exists():
+                    key = candidate
+                    break
+            if key is None and images_dir.exists():
+                sub_dirs = [d.name for d in images_dir.iterdir() if d.is_dir()]
+                key = sub_dirs[0] if sub_dirs else None
+            if key is not None:
+                with open(images_dir / key / "0" / ".zarray") as fh:
+                    scale0_y = json.load(fh)["shape"][-2]
+                pixel_size = constants.read_pixel_size(sample_dir / "processed" / constants.EXPERIMENT_FILENAME)
+                return float(scale0_y) * pixel_size
+        except (OSError, ValueError, KeyError, IndexError, json.JSONDecodeError) as exc:
+            self.logger.warning("Could not derive tissue height from image dims (%s)", exc)
+        self.logger.warning("Falling back to shapes maxy=%.1f for cell-shape height", fallback_maxy)
+        return float(fallback_maxy)
 
     # ------------------------------------------------------------------ #
     # Cell-shape overlays
@@ -219,15 +260,21 @@ class ImageRenderer:
             correction_factor = float(cell_boundaries.total_bounds[2])
             self.logger.warning("No correction_factor.csv; using cell maxx=%.1f", correction_factor)
 
+        # Tissue is rarely square: derive the Y extent instead of reusing the X
+        # one, otherwise everything below y == correction_factor is cropped off.
+        tissue_height = self.tissue_height_um(sample_dir, float(cell_boundaries.total_bounds[3]))
+        self.logger.info("Cell shape canvas: %.1f x %.1f um", correction_factor, tissue_height)
+
         def make_fig():
             fig_width = 10
             dpi = _TARGET_WIDTH / fig_width
-            fig, ax = plt.subplots(figsize=(fig_width, fig_width), dpi=dpi)
+            fig_height = fig_width * tissue_height / correction_factor
+            fig, ax = plt.subplots(figsize=(fig_width, fig_height), dpi=dpi)
             return fig, ax, dpi
 
         def save(fig, ax, path, dpi):
             ax.set_xlim(0, correction_factor)
-            ax.set_ylim(correction_factor, 0)
+            ax.set_ylim(tissue_height, 0)
             ax.set_aspect("equal")
             ax.axis("off")
             fig.subplots_adjust(left=0, right=1, top=1, bottom=0)

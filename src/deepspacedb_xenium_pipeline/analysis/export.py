@@ -53,13 +53,19 @@ def export_single_cell(
     zarr_file = bin_path / "sparse_gene_expression_chunked_per_gene.zarr.zip"
     store = zarr.storage.ZipStore(str(zarr_file), mode="w")
     root = zarr.group(store=store)
+    seen_gene_names: set = set()
     for gene_idx, gene_name in enumerate(gene_names):
         if gene_idx % 500 == 0:
             logger.info("Gene %d/%d", gene_idx + 1, len(gene_names))
         gene_expr_csc = gene_expression.getcol(gene_idx).tocsc()
-        root.create_dataset(f"data_{gene_name}", data=gene_expr_csc.data, chunks=True, compression="blosc")
-        root.create_dataset(f"indices_{gene_name}", data=gene_expr_csc.indices, chunks=True, compression="blosc")
-        root.create_dataset(f"indptr_{gene_name}", data=gene_expr_csc.indptr, chunks=True, compression="blosc")
+        # Duplicate gene symbols in the panel would otherwise collide on the
+        # same dataset path; disambiguate repeats with an index prefix, which
+        # the reader's gene-chunk key lookup already falls back to.
+        key = gene_name if gene_name not in seen_gene_names else f"{gene_idx:06d}_{gene_name}"
+        seen_gene_names.add(gene_name)
+        root.create_dataset(f"data_{key}", data=gene_expr_csc.data, chunks=True, compression="blosc")
+        root.create_dataset(f"indices_{key}", data=gene_expr_csc.indices, chunks=True, compression="blosc")
+        root.create_dataset(f"indptr_{key}", data=gene_expr_csc.indptr, chunks=True, compression="blosc")
     root.attrs["shape"] = gene_expression_csc.shape
     store.close()
     created.append(zarr_file.name)

@@ -104,13 +104,7 @@ class XeniumProcessor:
             else:
                 sdata = self.builder.build_custom(processed_dir)
 
-            he_aligned = processed_dir / constants.HE_IMAGE_ALIGNED_FILENAME
-            if he_aligned.exists() and "he_image" not in sdata.images:
-                try:
-                    sdata.images["he_image"] = self.he.load_as_spatialdata_image(he_aligned)
-                    self.logger.info("Added aligned H&E image to SpatialData")
-                except Exception as exc:  # noqa: BLE001
-                    self.logger.warning("Could not add aligned H&E image: %s", exc)
+            self._attach_he_image(sample_dir, processed_dir, sdata)
 
             if output_path.exists():
                 shutil.rmtree(output_path)
@@ -130,6 +124,44 @@ class XeniumProcessor:
             msg = str(exc)
             self.logger.error("Failed to transform %s: %s", sample_dir, msg)
             return failure(TransformationResult, sample_dir, msg)
+
+    def _attach_he_image(self, sample_dir: Path, processed_dir: Path, sdata) -> None:
+        """Put a correctly-aligned H&E image under the ``he_image`` key.
+
+        spatialdata_io's own ``_add_aligned_images()`` only recognizes a file
+        ending exactly in ``he_image.ome.tif`` paired with a same-directory
+        ``<name>alignment.csv``. Our alignment CSVs live in ``raw/`` under other
+        names (``*_homography.csv``, ``matrix.csv``), so it never finds them and
+        loads the raw ``he_image.ome.tif`` with an Identity transform
+        (unaligned) instead of skipping it. Once that has happened ``he_image``
+        is already taken, so the affine-aligned image OVERWRITES it rather than
+        only being added conditionally: an unaligned image sitting under the
+        right key is worse than no image at all.
+        """
+        he_source = self.he.find_unaligned_he_source(sample_dir)
+        alignment_csv = self.he.find_alignment_csv(sample_dir / "raw") if he_source else None
+        if he_source is not None and alignment_csv is not None:
+            try:
+                sdata.images["he_image"] = self.he.load_with_affine(he_source, alignment_csv)
+                self.logger.info("Added Affine-aligned he_image from %s + %s", he_source.name, alignment_csv.name)
+                return
+            except Exception as exc:  # noqa: BLE001
+                self.logger.warning("Could not add Affine-aligned H&E image: %s", exc)
+
+        # Fallback: a pre-warped he_image_aligned.ome.tif (pixels already
+        # resampled into the global frame by the H&E alignment step) - only add
+        # it if nothing has already claimed the key.
+        he_aligned = processed_dir / constants.HE_IMAGE_ALIGNED_FILENAME
+        if he_aligned.exists() and "he_image" not in sdata.images:
+            try:
+                sdata.images["he_image"] = self.he.load_as_spatialdata_image(he_aligned)
+                self.logger.info("Added aligned H&E image to SpatialData")
+            except Exception as exc:  # noqa: BLE001
+                self.logger.warning("Could not add aligned H&E image: %s", exc)
+        elif "he_image" in sdata.images:
+            self.logger.warning(
+                "he_image is present but no alignment matrix was found - it may be unaligned (Identity transform)"
+            )
 
     def process_salvaged_sample(self, sample_dir: Path) -> CompleteProcessingResult:
         """Run all post-salvage stages using an existing ``processed/`` directory."""
