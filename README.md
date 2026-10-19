@@ -27,7 +27,9 @@ pytest
 ```
 
 Requires Python >= 3.10 on Linux, macOS, or Windows. Built for `spatialdata` 0.5.0
-and `spatialdata-io` 0.3.0 on `zarr` 2.x.
+and `spatialdata-io` 0.3.0 on `zarr` 2.x. Installation time is approximately 1 minute.
+
+
 
 ## Usage
 
@@ -86,6 +88,12 @@ Outputs are written under `base_dir/data/{GPL}/{GSE}/{GSM}/`.
 - **process** builds a `SpatialData` object, then runs transcriptomics (QC, normalization, PCA, UMAP,
   Leiden clustering), imaging (multi-scale MIPs, focus stacks, H&E overlays, boundary masks),
   optional spatial binning, sparse Zarr export, and a per-sample QC summary.
+
+Approximate completion time for each of the stages: find - 30 seconds, download - around 10 minutes for 
+one sample (depending on the connection speed and sample's data size), salvage - 5 minutes, process - 30 
+minutes to 24 hours, depending on the number of cells and genes. Leiden clustering takes a long time to 
+finish if the number of cells is high.
+
 
 ## Reference
 
